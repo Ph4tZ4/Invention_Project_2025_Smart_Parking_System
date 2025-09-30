@@ -1,0 +1,90 @@
+[
+  {
+    "id": 1759226128156,
+    "building": "A",
+    "slot": "A4",
+    "customerName": "kittipus",
+    "customerPhone": "0888888899",
+    "bookingTime": "2025-10-30T09:54:00.000Z",
+    "status": "pending_payment",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:55:58.156Z"
+  },
+  {
+    "id": 1759226044383,
+    "building": "A",
+    "slot": "A3",
+    "customerName": "ฟหกฟหกฟหก",
+    "customerPhone": "0886666666",
+    "bookingTime": "2025-10-30T09:52:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:54:34.383Z"
+  },
+  {
+    "id": 1759225952031,
+    "building": "A",
+    "slot": "A3",
+    "customerName": "ฟหกฟหก",
+    "customerPhone": "0886666666",
+    "bookingTime": "2025-10-30T09:38:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:53:02.031Z"
+  },
+  {
+    "id": 1759225069188,
+    "building": "A",
+    "slot": "A2",
+    "customerName": "ฟหกฟหกหฟ",
+    "customerPhone": "0886666666",
+    "bookingTime": "2025-10-30T09:37:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:38:19.188Z"
+  },
+  {
+    "id": 1759225017343,
+    "building": "A",
+    "slot": "A2",
+    "customerName": "กหฟฟกฟห",
+    "customerPhone": "0555555555",
+    "bookingTime": "2025-10-30T09:35:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:37:27.343Z"
+  },
+  {
+    "id": 1759224895734,
+    "building": "A",
+    "slot": "A4",
+    "customerName": "สดสด",
+    "customerPhone": "76767",
+    "bookingTime": "2025-10-02T09:28:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:35:25.734Z"
+  },
+  {
+    "id": 1759224894817,
+    "building": "A",
+    "slot": "A2",
+    "customerName": "า่เา่เาเา",
+    "customerPhone": "0886666666",
+    "bookingTime": "2025-10-30T09:31:00.000Z",
+    "status": "cancelled",
+    "paid": false,
+    "paymentDueAt": "2025-09-30T09:35:24.817Z"
+  },
+  {
+    "id": 1759224545429,
+    "building": "A",
+    "slot": "A1",
+    "customerName": "asdf",
+    "customerPhone": "asdf",
+    "bookingTime": "2025-10-30T09:28:00.000Z",
+    "status": "cancelled",
+    "paid": true,
+    "paymentDueAt": "2025-09-30T09:29:35.429Z"
+  }
+]

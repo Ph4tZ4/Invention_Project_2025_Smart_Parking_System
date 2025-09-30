@@ -7,6 +7,7 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+const fs = require('fs');
 
 // Middleware
 app.use(cors());
@@ -20,8 +21,42 @@ let parkingData = {
     lastUpdated: new Date().toISOString()
 };
 
-// Store bookings
+// Store bookings (persisted)
 let bookings = [];
+const DATA_DIR = path.join(__dirname, 'data');
+const BOOKINGS_FILE = path.join(DATA_DIR, 'bookings.json');
+
+function ensureDataDir() {
+    try {
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch {}
+}
+
+function loadBookings() {
+    try {
+        ensureDataDir();
+        if (fs.existsSync(BOOKINGS_FILE)) {
+            const raw = fs.readFileSync(BOOKINGS_FILE, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) bookings = parsed;
+        }
+    } catch (e) {
+        console.error('Failed to load bookings.json', e);
+    }
+}
+
+function saveBookings() {
+    try {
+        ensureDataDir();
+        fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Failed to save bookings.json', e);
+    }
+}
+// Payment timeout references
+const paymentTimers = new Map();
+// Payment window: default to 30s for testing; set env PAYMENT_WINDOW_MS=300000 for 5 minutes
+const PAYMENT_WINDOW_MS = parseInt(process.env.PAYMENT_WINDOW_MS || '30000', 10);
 
 // WebSocket connections
 const clients = new Set();
@@ -118,7 +153,7 @@ app.get('/api/bookings', (req, res) => {
 // Create booking
 app.post('/api/bookings', (req, res) => {
     try {
-        const { building, slot, customerName, customerPhone } = req.body;
+        const { building, slot, customerName, customerPhone, bookingTime } = req.body;
         
         if (!building || !slot || !customerName || !customerPhone) {
             return res.status(400).json({
@@ -138,6 +173,26 @@ app.post('/api/bookings', (req, res) => {
             });
         }
         
+        // Validate booking time: must be now or future and within 09:00-21:00
+        let chosenTime = new Date();
+        if (bookingTime) {
+            const parsed = new Date(bookingTime);
+            if (isNaN(parsed.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid booking time' });
+            }
+            const now = new Date();
+            if (parsed.getTime() < now.getTime() - 1000) {
+                return res.status(400).json({ success: false, message: 'Booking time cannot be in the past' });
+            }
+            const hour = parsed.getHours();
+            const minute = parsed.getMinutes();
+            const within = (hour > 9 && hour < 21) || (hour === 9) || (hour === 21 && minute === 0);
+            if (!within) {
+                return res.status(400).json({ success: false, message: 'Booking time must be between 09:00 and 21:00' });
+            }
+            chosenTime = parsed;
+        }
+
         // Create booking
         const booking = {
             id: Date.now(),
@@ -145,11 +200,27 @@ app.post('/api/bookings', (req, res) => {
             slot,
             customerName,
             customerPhone,
-            bookingTime: new Date().toISOString(),
-            status: 'active'
+            bookingTime: chosenTime.toISOString(),
+            status: 'pending_payment',
+            paid: false,
+            paymentDueAt: new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString()
         };
         
         bookings.unshift(booking);
+        saveBookings();
+        // Schedule auto-cancel if unpaid (only cancel, don't change slot reservation)
+        const timer = setTimeout(() => {
+            try {
+                const b = bookings.find(x => x.id === booking.id);
+                if (b && b.status === 'pending_payment' && !b.paid) {
+                    b.status = 'cancelled';
+                    broadcast({ type: 'booking_cancelled', data: b });
+                }
+            } finally {
+                paymentTimers.delete(booking.id);
+            }
+        }, PAYMENT_WINDOW_MS);
+        paymentTimers.set(booking.id, timer);
         
         // Broadcast updates (booking only; do not change sensor occupancy here)
         broadcast({
@@ -157,6 +228,7 @@ app.post('/api/bookings', (req, res) => {
             data: booking
         });
         
+        saveBookings();
         res.json({
             success: true,
             message: 'Booking created successfully',
@@ -170,6 +242,34 @@ app.post('/api/bookings', (req, res) => {
         });
     }
 });
+
+// Confirm payment
+app.post('/api/bookings/:id/pay', (req, res) => {
+    try {
+        const bookingId = parseInt(req.params.id);
+        const booking = bookings.find(b => b.id === bookingId);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Booking not found' });
+        }
+        if (booking.status !== 'pending_payment') {
+            return res.status(400).json({ success: false, message: 'Booking is not active' });
+        }
+        booking.paid = true;
+        booking.status = 'active';
+        // Clear auto-cancel timer
+        const t = paymentTimers.get(booking.id);
+        if (t) { clearTimeout(t); paymentTimers.delete(booking.id); }
+        broadcast({ type: 'booking_paid', data: booking });
+        saveBookings();
+        res.json({ success: true, message: 'Payment confirmed', data: booking });
+    } catch (error) {
+        console.error('Error confirming payment:', error);
+        res.status(500).json({ success: false, message: 'Error confirming payment' });
+    }
+});
+
+// Initialize persisted data
+loadBookings();
 
 // Cancel booking
 app.delete('/api/bookings/:id', (req, res) => {

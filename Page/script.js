@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateTime, 1000);
     setInterval(updateParkingData, 2000); // Update every 2 seconds
     setupEventListeners();
+    setupDateTimePicker();
     updateDashboard();
     updateBookingsTable();
     updateNotificationBadge();
@@ -100,13 +101,17 @@ function updateBookButton() {
     const slot = document.getElementById('slotSelect').value;
     const name = document.getElementById('customerName').value.trim();
     const phone = document.getElementById('customerPhone').value.trim();
-    bookBtn.disabled = !(building && slot && name && phone);
+    const dtEl = document.getElementById('bookingDateTime');
+    const dateValid = dtEl ? validateBookingDateTime() : true;
+    bookBtn.disabled = !(building && slot && name && phone && dateValid);
 }
 
 // Setup event listeners
 function setupEventListeners() {
     document.getElementById('buildingSelect').addEventListener('change', updateSlotOptions);
     ['customerName', 'customerPhone'].forEach(id => document.getElementById(id).addEventListener('input', updateBookButton));
+    const dtEl = document.getElementById('bookingDateTime');
+    if (dtEl) dtEl.addEventListener('input', () => { validateBookingDateTime(); updateBookButton(); });
     document.getElementById('bookBtn').addEventListener('click', handleBooking);
     document.getElementById('refreshBtn').addEventListener('click', () => { updateParkingData(); updateDashboard(); updateBookingsTable(); });
     document.getElementById('closeSuccessModal').addEventListener('click', () => { document.getElementById('successModal').classList.add('hidden'); });
@@ -120,10 +125,16 @@ function handleBooking() {
     const slot = document.getElementById('slotSelect').value;
     const name = document.getElementById('customerName').value.trim();
     const phone = document.getElementById('customerPhone').value.trim();
-    if (!building || !slot || !name || !phone) { alert('กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
+    const dtEl = document.getElementById('bookingDateTime');
+    if (!building || !slot || !name || !phone || (dtEl && !validateBookingDateTime())) { alert('กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
     const bookBtn = document.getElementById('bookBtn');
     bookBtn.disabled = true;
-    fetch(`${API_BASE}/api/bookings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ building, slot, customerName: name, customerPhone: phone }) })
+    const payload = { building, slot, customerName: name, customerPhone: phone };
+    if (dtEl && dtEl.value) {
+        const selectedLocal = new Date(dtEl.value);
+        payload.bookingTime = selectedLocal.toISOString();
+    }
+    fetch(`${API_BASE}/api/bookings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
         .then(result => {
             if (!result.success) { alert(result.message || 'ไม่สามารถจองได้'); return; }
@@ -133,20 +144,13 @@ function handleBooking() {
                 bookings.unshift(booking);
             }
             localStorage.setItem('bookings', JSON.stringify(bookings));
-            const slotIndex = parseInt(slot.substring(1)) - 1;
-            if (building === 'A') reservedData.boardA[slotIndex] = true; else reservedData.boardB[slotIndex] = true;
-            recomputeParkingFromBookings();
-            updateParkingSlots();
+            // Don't reserve slot until payment is confirmed - just redirect to payment
             updateDashboard();
             updateBookingsTable();
             renderMobileBookings();
-            document.getElementById('buildingSelect').value = '';
-            document.getElementById('slotSelect').value = '';
-            document.getElementById('customerName').value = '';
-            document.getElementById('customerPhone').value = '';
-            updateSlotOptions();
-            addNotification('booking', 'การจองสำเร็จ', `คุณได้จองที่จอดรถ ${slot} เรียบร้อยแล้ว`, 'fas fa-calendar-check', 'blue');
-            document.getElementById('successModal').classList.remove('hidden');
+            // Redirect to payment page
+            const due = encodeURIComponent(booking.paymentDueAt || '');
+            window.location.href = `payment.html?id=${booking.id}&due=${due}`;
         })
         .catch((e) => {
             console.error('Booking request failed', e);
@@ -193,7 +197,9 @@ function updateBookingsTable() {
     bookings = unique;
     localStorage.setItem('bookings', JSON.stringify(bookings));
     tbody.innerHTML = '';
-    bookings.slice(0, 10).forEach(booking => {
+    // Only show active/paid bookings in the table
+    const activeBookings = bookings.filter(b => b.status === 'active');
+    activeBookings.slice(0, 10).forEach(booking => {
         const bookingTime = new Date(booking.bookingTime);
         const timeString = bookingTime.toLocaleString('th-TH');
         const row = document.createElement('tr');
@@ -202,21 +208,21 @@ function updateBookingsTable() {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.customerName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.customerPhone}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${timeString}</td>
-            <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${booking.status === 'active' ? 'ใช้งาน' : 'สิ้นสุด'}</span></td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${booking.status === 'active' ? `<button onclick="cancelBooking(${booking.id})" class="text-red-600 hover:text-red-900">ยกเลิก</button>` : `<button onclick="deleteBooking(${booking.id})" class="text-gray-600 hover:text-gray-900">ลบ</button>`}</td>`;
+            <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">ใช้งาน</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button onclick="cancelBooking(${booking.id})" class="text-red-600 hover:text-red-900">ยกเลิก</button></td>`;
         tbody.appendChild(row);
     });
     renderMobileBookings();
 }
 
-// Recompute parking occupancy from saved bookings
+// Recompute parking occupancy from saved bookings (only active/paid bookings)
 function recomputeParkingFromBookings() {
     reservedData.boardA = [false, false, false, false];
     reservedData.boardB = [false, false, false, false];
     try {
         const savedBookings = JSON.parse(localStorage.getItem('bookings')) || [];
         savedBookings.forEach(b => {
-            if (b && b.status === 'active' && typeof b.slot === 'string' && b.slot.length >= 2) {
+            if (b && b.status === 'active' && b.paid && typeof b.slot === 'string' && b.slot.length >= 2) {
                 const building = b.slot[0];
                 const slotIndex = parseInt(b.slot.substring(1)) - 1;
                 if (slotIndex >= 0 && slotIndex < 4) {
@@ -232,11 +238,12 @@ function renderMobileBookings() {
     const cardsContainer = document.getElementById('bookingsCards');
     if (!cardsContainer) return;
     cardsContainer.innerHTML = '';
-    // Use same deduped list
+    // Use same deduped list, only show active bookings
     const seen = new Set();
     const unique = [];
     for (const b of bookings) { if (!seen.has(b.id)) { seen.add(b.id); unique.push(b); } }
-    unique.slice(0, 10).forEach(booking => {
+    const activeBookings = unique.filter(b => b.status === 'active');
+    activeBookings.slice(0, 10).forEach(booking => {
         const timeString = new Date(booking.bookingTime).toLocaleString('th-TH');
         const card = document.createElement('div');
         card.className = 'border rounded-lg p-4 bg-white flex justify-between items-start';
@@ -248,8 +255,8 @@ function renderMobileBookings() {
                 <div class="mt-1 text-xs text-gray-500">${timeString}</div>
             </div>
             <div class="text-right">
-                <span class="px-2 py-1 text-xs rounded-full ${booking.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${booking.status === 'active' ? 'ใช้งาน' : 'สิ้นสุด'}</span>
-                <div class="mt-2">${booking.status === 'active' ? `<button class="text-red-600 text-sm" onclick="cancelBooking(${booking.id})">ยกเลิก</button>` : `<button class="text-gray-600 text-sm" onclick="deleteBooking(${booking.id})">ลบ</button>`}</div>
+                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">ใช้งาน</span>
+                <div class="mt-2"><button class="text-red-600 text-sm" onclick="cancelBooking(${booking.id})">ยกเลิก</button></div>
             </div>`;
         cardsContainer.appendChild(card);
     });
@@ -272,8 +279,11 @@ function cancelBooking(bookingId) {
             const local = bookings.find(b => b.id === bookingId);
             if (local) local.status = 'cancelled';
             localStorage.setItem('bookings', JSON.stringify(bookings));
-            const slotIndex = parseInt(booking.slot.substring(1)) - 1;
-            if (booking.building === 'A') reservedData.boardA[slotIndex] = false; else reservedData.boardB[slotIndex] = false;
+            // Only unreserve if it was actually reserved (status was 'active')
+            if (booking.status === 'active') {
+                const slotIndex = parseInt(booking.slot.substring(1)) - 1;
+                if (booking.building === 'A') reservedData.boardA[slotIndex] = false; else reservedData.boardB[slotIndex] = false;
+            }
             updateParkingSlots();
             updateDashboard();
             updateBookingsTable();
@@ -312,6 +322,69 @@ function updateParkingData() {
     }).finally(() => { updateParkingSlots(); updateDashboard(); });
 }
 
+// Date-time picker helpers
+function setupDateTimePicker() {
+    const dt = document.getElementById('bookingDateTime');
+    if (!dt) return;
+    const now = new Date();
+    now.setSeconds(0, 0);
+    // Set min to current local time
+    const localMin = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    dt.min = localMin;
+    // Default value: clamp to business window (09:00-21:00)
+    const defaultDate = clampToBusinessWindow(now);
+    const defaultLocal = new Date(defaultDate.getTime() - defaultDate.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    if (!dt.value) dt.value = defaultLocal;
+    validateBookingDateTime();
+}
+
+function validateBookingDateTime() {
+    const dt = document.getElementById('bookingDateTime');
+    const hint = document.getElementById('bookingDateTimeHint');
+    if (!dt) return true;
+    let valid = true;
+    if (!dt.value) {
+        valid = false;
+    } else {
+        const selected = new Date(dt.value);
+        const now = new Date();
+        if (isNaN(selected.getTime()) || selected.getTime() < now.getTime() - 1000 || !isWithinBusinessHours(selected)) {
+            valid = false;
+        }
+    }
+    if (hint) {
+        hint.className = `mt-1 text-xs ${valid ? 'text-gray-500' : 'text-red-600'}`;
+        hint.textContent = valid
+            ? 'ห้ามเลือกเวลาย้อนหลัง และต้องอยู่ระหว่าง 09:00–21:00'
+            : 'เวลาไม่ถูกต้อง: เลือกเวลาที่ไม่น้อยกว่าปัจจุบัน และอยู่ระหว่าง 09:00–21:00';
+    }
+    return valid;
+}
+
+function isWithinBusinessHours(dateObj) {
+    const hour = dateObj.getHours();
+    const minute = dateObj.getMinutes();
+    // Allow 09:00 up to before 21:00, and exactly 21:00
+    return (hour > 9 && hour < 21) || (hour === 9) || (hour === 21 && minute === 0);
+}
+
+function clampToBusinessWindow(dateObj) {
+    const d = new Date(dateObj);
+    const hour = d.getHours();
+    const minute = d.getMinutes();
+    if (hour < 9) {
+        d.setHours(9, 0, 0, 0);
+        return d;
+    }
+    if (hour > 21 || (hour === 21 && minute > 0)) {
+        // move to next day 09:00
+        d.setDate(d.getDate() + 1);
+        d.setHours(9, 0, 0, 0);
+        return d;
+    }
+    return d;
+}
+
 // WebSocket connection for real-time updates
 function connectWebSocket() {
     try {
@@ -333,8 +406,7 @@ function connectWebSocket() {
                     const b = msg.data;
                     if (!bookings.find(x => x.id === b.id)) { bookings.unshift(b); }
                     localStorage.setItem('bookings', JSON.stringify(bookings));
-                    const slotIndex = parseInt(b.slot.substring(1)) - 1;
-                    if (b.building === 'A') reservedData.boardA[slotIndex] = true; else reservedData.boardB[slotIndex] = true;
+                    // Don't reserve slot for pending_payment bookings
                     updateBookingsTable();
                     updateParkingSlots();
                     updateDashboard();
@@ -343,8 +415,19 @@ function connectWebSocket() {
                     const local = bookings.find(x => x.id === b.id);
                     if (local) local.status = 'cancelled';
                     localStorage.setItem('bookings', JSON.stringify(bookings));
+                    // Don't change slot reservation for cancelled bookings (they were never reserved)
+                    updateBookingsTable();
+                    updateParkingSlots();
+                    updateDashboard();
+                } else if (msg.type === 'booking_paid' && msg.data) {
+                    const b = msg.data;
+                    const local = bookings.find(x => x.id === b.id);
+                    if (local) { local.status = 'active'; local.paid = true; }
+                    localStorage.setItem('bookings', JSON.stringify(bookings));
+                    // Now reserve the slot after payment confirmation
                     const slotIndex = parseInt(b.slot.substring(1)) - 1;
-                    if (b.building === 'A') reservedData.boardA[slotIndex] = false; else reservedData.boardB[slotIndex] = false;
+                    if (b.building === 'A') reservedData.boardA[slotIndex] = true; else reservedData.boardB[slotIndex] = true;
+                    recomputeParkingFromBookings();
                     updateBookingsTable();
                     updateParkingSlots();
                     updateDashboard();

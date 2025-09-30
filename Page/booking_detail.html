@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายละเอียดการจอง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+        <h1 class="text-xl font-bold text-gray-900 mb-2">รายละเอียดการจอง</h1>
+        <div id="content" class="text-sm text-gray-700">
+            กำลังโหลดข้อมูล...
+        </div>
+        <div class="mt-4 flex gap-2">
+            <a href="index.html" class="flex-1 text-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-secondary">กลับหน้าแรก</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const params = new URLSearchParams(location.search);
+        const bookingId = parseInt(params.get('id'));
+        const content = document.getElementById('content');
+        fetch(API_BASE + '/api/bookings').then(r=>r.json()).then(d=>{
+            if (d && d.success && Array.isArray(d.data)) {
+                const b = d.data.find(x=>x.id === bookingId);
+                if (b) {
+                    const time = new Date(b.bookingTime).toLocaleString('th-TH');
+                    content.innerHTML = `
+                        <div class="space-y-1">
+                            <div><span class="text-gray-500">เลขที่จอง:</span> <span class="font-mono">${b.id}</span></div>
+                            <div><span class="text-gray-500">ที่จอด:</span> ${b.slot}</div>
+                            <div><span class="text-gray-500">ผู้จอง:</span> ${b.customerName}</div>
+                            <div><span class="text-gray-500">เบอร์โทร:</span> ${b.customerPhone}</div>
+                            <div><span class="text-gray-500">เวลาที่จอง:</span> ${time}</div>
+                            <div><span class="text-gray-500">สถานะ:</span> <span class="${b.paid ? 'text-green-700' : 'text-yellow-700'}">${b.paid ? 'ชำระเงินแล้ว' : 'รอชำระเงิน'}</span></div>
+                        </div>
+                    `;
+                } else {
+                    content.textContent = 'ไม่พบรายการจอง';
+                }
+            } else {
+                content.textContent = 'โหลดข้อมูลล้มเหลว';
+            }
+        }).catch(()=>{ content.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ'; });
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ชำระเงิน - ระบบจองที่จอดรถ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+        <h1 class="text-xl font-bold text-gray-900 mb-2">ชำระเงินการจอง</h1>
+        <p id="slotInfo" class="text-sm text-gray-600 mb-4"></p>
+        <div class="rounded-lg border p-4 mb-4 flex flex-col items-center">
+            <img id="qrImage" src="images/qrfolk.jpg" alt="QR Payment" class="w-64 h-64 object-contain" onerror="this.style.display='none'">
+            <p class="text-xs text-gray-500 mt-2">สแกนเพื่อชำระเงิน</p>
+            <button id="downloadQr" class="mt-3 text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"><i class="fas fa-download mr-1"></i>ดาวน์โหลด QR</button>
+        </div>
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm text-gray-700">เวลาที่เหลือ</div>
+            <div id="countdown" class="font-mono font-bold text-primary">--:--</div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm text-gray-700 mb-1">อัปโหลดสลิปการโอนเงิน</label>
+            <input id="paymentSlip" type="file" accept="image/*,application/pdf" class="w-full text-sm">
+            <div id="slipPreview" class="mt-2 hidden">
+                <img id="slipImg" class="max-h-40 rounded border" alt="สลิปตัวอย่าง">
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="confirmPay" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">ยืนยันการจ่ายเงิน</button>
+            <button id="cancelPay" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+        </div>
+        <p id="statusMsg" class="text-sm mt-3"></p>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const params = new URLSearchParams(location.search);
+        const bookingId = parseInt(params.get('id'));
+        const paymentWindowMs = (window.PAYMENT_WINDOW_MS) || 60000; // 30s test
+        const slotInfo = document.getElementById('slotInfo');
+        const countdownEl = document.getElementById('countdown');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let expiryTs = Date.now() + paymentWindowMs;
+        try {
+            const due = params.get('due');
+            if (due) {
+                const t = Date.parse(due);
+                if (!isNaN(t)) expiryTs = t;
+            }
+        } catch {}
+
+        function formatCountdown(ms) {
+            const s = Math.max(0, Math.floor(ms/1000));
+            const mm = String(Math.floor(s/60)).padStart(2,'0');
+            const ss = String(s%60).padStart(2,'0');
+            return mm+':'+ss;
+        }
+
+        function tick() {
+            const remaining = expiryTs - Date.now();
+            countdownEl.textContent = formatCountdown(remaining);
+            if (remaining <= 0) {
+                statusMsg.className = 'text-sm text-red-600';
+                statusMsg.textContent = 'หมดเวลาชำระเงิน การจองจะถูกยกเลิกอัตโนมัติ';
+                document.getElementById('confirmPay').disabled = true;
+                clearInterval(timer);
+                setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+            }
+        }
+
+        let timer = setInterval(tick, 250);
+        tick();
+
+        // Load booking info for display
+        fetch(API_BASE + '/api/bookings').then(r=>r.json()).then(d=>{
+            if (d && d.success && Array.isArray(d.data)) {
+                const b = d.data.find(x=>x.id === bookingId);
+                if (b) {
+                    slotInfo.textContent = `ที่จอด: ${b.slot} • ผู้จอง: ${b.customerName}`;
+                    if (b.paymentDueAt) {
+                        const t = Date.parse(b.paymentDueAt);
+                        if (!isNaN(t)) { expiryTs = t; tick(); }
+                    }
+                    if (b.paid) {
+                        statusMsg.className = 'text-sm text-green-700';
+                        statusMsg.textContent = 'ชำระเงินแล้ว';
+                        document.getElementById('confirmPay').disabled = true;
+                    }
+                }
+            }
+        }).catch(()=>{});
+
+        document.getElementById('downloadQr').addEventListener('click', () => {
+            try {
+                const link = document.createElement('a');
+                link.href = document.getElementById('qrImage').src;
+                link.download = 'qrfolk.jpg';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            } catch {}
+        });
+
+        const slipInput = document.getElementById('paymentSlip');
+        slipInput.addEventListener('change', () => {
+            const file = slipInput.files && slipInput.files[0];
+            if (!file) { document.getElementById('slipPreview').classList.add('hidden'); return; }
+            if (file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                document.getElementById('slipImg').src = url;
+                document.getElementById('slipPreview').classList.remove('hidden');
+            } else {
+                document.getElementById('slipPreview').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('confirmPay').addEventListener('click', () => {
+            fetch(API_BASE + '/api/bookings/' + bookingId + '/pay', { method: 'POST' })
+                .then(r=>r.json())
+                .then(res=>{
+                    if (res && res.success) {
+                        statusMsg.className = 'text-sm text-green-700';
+                        statusMsg.textContent = 'ชำระเงินสำเร็จ กำลังเปิดรายละเอียดการจอง...';
+                        clearInterval(timer);
+                        setTimeout(()=>{ window.location.href = 'booking_detail.html?id=' + bookingId; }, 800);
+                    } else {
+                        statusMsg.className = 'text-sm text-red-600';
+                        statusMsg.textContent = (res && res.message) || 'ไม่สามารถยืนยันการชำระเงินได้';
+                    }
+                })
+                .catch(()=>{
+                    statusMsg.className = 'text-sm text-red-600';
+                    statusMsg.textContent = 'เครือข่ายผิดพลาด กรุณาลองใหม่';
+                });
+        });
+
+        document.getElementById('cancelPay').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
+
+
