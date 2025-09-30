@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>การวิเคราะห์ข้อมูล - ระบบจองที่จอดรถอัจฉริยะ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#1E40AF',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center">
+                        <i class="fas fa-arrow-left text-xl text-gray-600 mr-3"></i>
+                        <i class="fas fa-chart-bar text-2xl text-primary mr-3"></i>
+                        <h1 class="text-xl font-bold text-gray-900">การวิเคราะห์ข้อมูล</h1>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select id="timeRange" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="today">วันนี้</option>
+                        <option value="week">สัปดาห์นี้</option>
+                        <option value="month">เดือนนี้</option>
+                        <option value="year">ปีนี้</option>
+                    </select>
+                    <button id="refreshData" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-secondary transition duration-200">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-primary bg-opacity-20">
+                        <i class="fas fa-chart-line text-primary text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">อัตราการใช้งานเฉลี่ย</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgUtilization">0%</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-success bg-opacity-20">
+                        <i class="fas fa-calendar-check text-success text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">การจองทั้งหมด</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalBookings">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-warning bg-opacity-20">
+                        <i class="fas fa-clock text-warning text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">เวลาการใช้งานเฉลี่ย</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgDuration">0 ชม.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-danger bg-opacity-20">
+                        <i class="fas fa-star text-danger text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">ความพึงพอใจ</p>
+                        <p class="text-2xl font-bold text-gray-900" id="satisfaction">0%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Utilization Chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">อัตราการใช้งานตามเวลา</h3>
+                <canvas id="utilizationChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Popular Slots Chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">ช่องจอดที่ได้รับความนิยม</h3>
+                <canvas id="popularSlotsChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Daily Bookings Chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">การจองรายวัน</h3>
+                <canvas id="dailyBookingsChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Peak Hours Chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">ชั่วโมงเร่งด่วน</h3>
+                <canvas id="peakHoursChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Detailed Statistics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Building Comparison -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">เปรียบเทียบอาคาร</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-600">อาคาร A</span>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                                <div class="bg-primary h-2 rounded-full" style="width: 75%"></div>
+                            </div>
+                            <span class="text-sm font-bold text-gray-900">75%</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-600">อาคาร B</span>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                                <div class="bg-secondary h-2 rounded-full" style="width: 60%"></div>
+                            </div>
+                            <span class="text-sm font-bold text-gray-900">60%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Summary -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">สรุปรายได้</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">วันนี้</span>
+                        <span class="text-sm font-bold text-gray-900">฿1,200</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">สัปดาห์นี้</span>
+                        <span class="text-sm font-bold text-gray-900">฿8,400</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">เดือนนี้</span>
+                        <span class="text-sm font-bold text-gray-900">฿36,000</span>
+                    </div>
+                    <div class="border-t pt-3">
+                        <div class="flex justify-between">
+                            <span class="text-sm font-bold text-gray-900">รวม</span>
+                            <span class="text-lg font-bold text-primary">฿45,600</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">สถานะระบบ</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">เซ็นเซอร์ A1-A4</span>
+                        <span class="px-2 py-1 bg-success text-success text-xs rounded-full">ปกติ</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">เซ็นเซอร์ B1-B4</span>
+                        <span class="px-2 py-1 bg-success text-success text-xs rounded-full">ปกติ</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">ระบบประตู</span>
+                        <span class="px-2 py-1 bg-success text-success text-xs rounded-full">ปกติ</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">การเชื่อมต่อ</span>
+                        <span class="px-2 py-1 bg-warning text-warning text-xs rounded-full">ช้า</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="analytics.js"></script>
+</body>
+</html>
+
+

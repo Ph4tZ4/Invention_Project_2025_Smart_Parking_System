@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ช่วยเหลือ - ระบบจองที่จอดรถอัจฉริยะ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#1E40AF',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center">
+                        <i class="fas fa-arrow-left text-xl text-gray-600 mr-3"></i>
+                        <i class="fas fa-question-circle text-2xl text-primary mr-3"></i>
+                        <h1 class="text-xl font-bold text-gray-900">ช่วยเหลือ</h1>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Search -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="ค้นหาคำถามที่คุณต้องการ..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+        </div>
+
+        <!-- FAQ Categories -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition duration-200" onclick="showCategory('booking')">
+                <div class="text-center">
+                    <i class="fas fa-calendar-check text-4xl text-primary mb-4"></i>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">การจองที่จอดรถ</h3>
+                    <p class="text-sm text-gray-600">วิธีการจองและจัดการการจอง</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition duration-200" onclick="showCategory('system')">
+                <div class="text-center">
+                    <i class="fas fa-cog text-4xl text-primary mb-4"></i>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">ระบบและเทคนิค</h3>
+                    <p class="text-sm text-gray-600">การตั้งค่าและแก้ไขปัญหา</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition duration-200" onclick="showCategory('general')">
+                <div class="text-center">
+                    <i class="fas fa-info-circle text-4xl text-primary mb-4"></i>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">ข้อมูลทั่วไป</h3>
+                    <p class="text-sm text-gray-600">ข้อมูลเกี่ยวกับระบบ</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Content -->
+        <div id="faqContent" class="space-y-6">
+            <!-- Booking FAQ -->
+            <div id="booking-faq" class="faq-category hidden">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">การจองที่จอดรถ</h2>
+                
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">วิธีการจองที่จอดรถ</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>1. เลือกอาคารที่ต้องการจอง (A หรือ B)</p>
+                                <p>2. เลือกช่องจอดที่ว่าง (แสดงเป็นสีเขียว)</p>
+                                <p>3. กรอกชื่อและเบอร์โทรศัพท์</p>
+                                <p>4. กดปุ่ม "จองที่จอดรถ"</p>
+                                <p>5. ระบบจะแสดงการยืนยันการจอง</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">วิธีการยกเลิกการจอง</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>1. ไปที่ตาราง "การจองล่าสุด"</p>
+                                <p>2. หาการจองที่ต้องการยกเลิก</p>
+                                <p>3. กดปุ่ม "ยกเลิก" สีแดง</p>
+                                <p>4. ยืนยันการยกเลิก</p>
+                                <p>5. ระบบจะปลดล็อกที่จอดรถทันที</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">การจองมีระยะเวลานานเท่าไหร่</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600">
+                                <p>การจองจะคงอยู่จนกว่าคุณจะยกเลิกหรือรถจะออกจากที่จอด โดยระบบจะตรวจสอบสถานะแบบเรียลไทม์ผ่านเซ็นเซอร์</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System FAQ -->
+            <div id="system-faq" class="faq-category hidden">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">ระบบและเทคนิค</h2>
+                
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">วิธีการเชื่อมต่อ Arduino กับระบบ</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>1. ตั้งค่า WiFi ในโค้ด Arduino</p>
+                                <p>2. เปลี่ยน IP address ของเซิร์ฟเวอร์</p>
+                                <p>3. อัปโหลดโค้ดลง Arduino</p>
+                                <p>4. ตรวจสอบการเชื่อมต่อในหน้าตั้งค่า</p>
+                                <p>5. ระบบจะรับข้อมูลอัตโนมัติ</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">การแก้ไขปัญหาเซ็นเซอร์ไม่ทำงาน</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>1. ตรวจสอบการเชื่อมต่อสายไฟ</p>
+                                <p>2. ตรวจสอบการตั้งค่า pin ในโค้ด</p>
+                                <p>3. ตรวจสอบการเชื่อมต่อ WiFi</p>
+                                <p>4. ดู Serial Monitor สำหรับข้อผิดพลาด</p>
+                                <p>5. รีสตาร์ท Arduino หากจำเป็น</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">การตั้งค่าเซิร์ฟเวอร์</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>1. ติดตั้ง Node.js และ npm</p>
+                                <p>2. รันคำสั่ง npm install</p>
+                                <p>3. รันคำสั่ง npm start</p>
+                                <p>4. เปิดเบราว์เซอร์ไปที่ localhost:3000</p>
+                                <p>5. ตั้งค่า IP address ใน Arduino</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General FAQ -->
+            <div id="general-faq" class="faq-category hidden">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">ข้อมูลทั่วไป</h2>
+                
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">ระบบจองที่จอดรถอัจฉริยะคืออะไร</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600">
+                                <p>ระบบจองที่จอดรถอัจฉริยะเป็นระบบที่ใช้เทคโนโลยี IoT (Internet of Things) ในการตรวจสอบสถานะที่จอดรถแบบเรียลไทม์ และให้ผู้ใช้สามารถจองที่จอดรถผ่านเว็บไซต์ได้</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">ระบบรองรับการใช้งานกี่คน</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600">
+                                <p>ระบบสามารถรองรับผู้ใช้ได้ไม่จำกัด เนื่องจากใช้ WebSocket สำหรับการอัปเดตแบบเรียลไทม์ และสามารถขยายได้ตามความต้องการ</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="w-full text-left p-6 focus:outline-none" onclick="toggleFAQ(this)">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-medium text-gray-900">การแจ้งเตือนทำงานอย่างไร</h3>
+                                <i class="fas fa-chevron-down transform transition-transform"></i>
+                            </div>
+                        </button>
+                        <div class="px-6 pb-6 hidden">
+                            <div class="text-gray-600 space-y-2">
+                                <p>ระบบจะแจ้งเตือนเมื่อ:</p>
+                                <p>• มีการจองที่จอดรถใหม่</p>
+                                <p>• ระบบตรวจพบความผิดปกติ</p>
+                                <p>• มีการอัปเดตระบบ</p>
+                                <p>• การจองใกล้หมดอายุ</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Support -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">ติดต่อฝ่ายสนับสนุน</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">ข้อมูลติดต่อ</h3>
+                    <div class="space-y-2 text-gray-600">
+                        <p><i class="fas fa-envelope mr-2"></i>support@smartparking.com</p>
+                        <p><i class="fas fa-phone mr-2"></i>02-123-4567</p>
+                        <p><i class="fas fa-clock mr-2"></i>จันทร์-ศุกร์ 9:00-18:00</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">ส่งข้อความ</h3>
+                    <form id="contactForm">
+                        <div class="space-y-3">
+                            <input type="text" placeholder="ชื่อ" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
+                            <input type="email" placeholder="อีเมล" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
+                            <textarea placeholder="ข้อความ" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+                            <button type="submit" class="w-full bg-primary text-white py-2 rounded-lg hover:bg-secondary transition duration-200">
+                                <i class="fas fa-paper-plane mr-2"></i>ส่งข้อความ
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show FAQ category
+        function showCategory(category) {
+            // Hide all categories
+            document.querySelectorAll('.faq-category').forEach(cat => {
+                cat.classList.add('hidden');
+            });
+            
+            // Show selected category
+            document.getElementById(category + '-faq').classList.remove('hidden');
+        }
+
+        // Toggle FAQ item
+        function toggleFAQ(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('i');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const faqItems = document.querySelectorAll('.bg-white.rounded-lg.shadow-md');
+            
+            faqItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Contact form
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('ขอบคุณสำหรับข้อความ เราจะติดต่อกลับโดยเร็วที่สุด');
+            this.reset();
+        });
+
+        // Show general FAQ by default
+        showCategory('general');
+    </script>
+</body>
+</html>
+
+
